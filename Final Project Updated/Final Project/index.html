@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Algorithm Learning Hub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1000px;
+      width: 100%;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 8px;
+      font-size: 28px;
+      color: #111827;
+    }
+
+    p.subtitle {
+      text-align: center;
+      margin-bottom: 24px;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 18px 18px 16px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 150px;
+      touch-action: manipulation;
+      position: relative;
+    }
+
+    .card:hover,
+    .card:focus-visible {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 35px rgba(15, 23, 42, 0.16);
+    }
+
+    .card-title {
+      font-size: 18px;
+      margin-bottom: 6px;
+      color: #111827;
+      font-weight: 600;
+    }
+
+    .card-desc {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 10px;
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 4px 10px;
+      font-size: 11px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #4f46e5;
+      font-weight: 600;
+      margin-top: 6px;
+      align-self: flex-start;
+    }
+
+    .visited-badge {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #dcfce7;
+      color: #166534;
+      font-weight: 600;
+    }
+
+    /* Final Question Button */
+    #finalBtn {
+      margin: 30px auto 0;
+      display: block;
+      padding: 12px 22px;
+      font-size: 18px;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 14px;
+      cursor: not-allowed;
+      opacity: 0.45;
+      transition: 0.3s ease;
+    }
+
+    #finalBtn.enabled {
+      cursor: pointer;
+      opacity: 1;
+      background: #10b981;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Algorithm Learning Hub</h1>
+    <p class="subtitle">Tap a module to explore interactive visualizations.</p>
+
+    <div class="grid">
+      <!-- Arrays -->
+      <a href="array.html" target="_blank" rel="noopener noreferrer"
+         class="card module" data-module="array">
+        <div>
+          <div class="card-title">Arrays</div>
+          <div class="card-desc">
+            Learn basic array operations like insert, delete, push, pop, and traversal.
+          </div>
+        </div>
+        <span class="chip">Start with Basics</span>
+      </a>
+
+      <!-- Linear & Binary Search -->
+      <a href="https://cling-pose-47604544.figma.site/"
+         target="_blank" rel="noopener noreferrer"
+         class="card module" data-module="search">
+        <div>
+          <div class="card-title">Linear & Binary Search</div>
+          <div class="card-desc">
+            Understand searching in sorted and unsorted arrays with step-by-step visuals.
+          </div>
+        </div>
+        <span class="chip">Searching Algorithms</span>
+      </a>
+
+      <!-- Merge Sort -->
+      <a href="mergesort.html" target="_blank" rel="noopener noreferrer"
+         class="card module" data-module="mergesort">
+        <div>
+          <div class="card-title">Merge Sort</div>
+          <div class="card-desc">
+            Split arrays, sort subarrays, and merge them back together.
+          </div>
+        </div>
+        <span class="chip">Divide & Conquer</span>
+      </a>
+
+      <!-- Bubble Sort -->
+      <a href="bubblesort.html" target="_blank" rel="noopener noreferrer"
+         class="card module" data-module="bubble">
+        <div>
+          <div class="card-title">Bubble Sort</div>
+          <div class="card-desc">
+            Compare and swap adjacent elements until the array is sorted.
+          </div>
+        </div>
+        <span class="chip">Sorting Algorithm</span>
+      </a>
+    </div>
+
+    <!-- FINAL QUESTION BUTTON -->
+    <button id="finalBtn" disabled>Final Question</button>
+
+  </div>
+
+<script>
+  // load visited modules from localStorage (if any)
+  let visited = JSON.parse(localStorage.getItem("visitedModules")) || {
+    array: false,
+    search: false,
+    mergesort: false,
+    bubble: false
+  };
+
+  const modules = document.querySelectorAll(".module");
+  const finalBtn = document.getElementById("finalBtn");
+
+  function saveVisited() {
+    localStorage.setItem("visitedModules", JSON.stringify(visited));
+  }
+
+  function updateCardBadges() {
+    modules.forEach(mod => {
+      const key = mod.dataset.module;
+      // remove old badge
+      const old = mod.querySelector(".visited-badge");
+      if (old) old.remove();
+
+      if (visited[key]) {
+        const badge = document.createElement("span");
+        badge.className = "visited-badge";
+        badge.textContent = "Visited ✅";
+        mod.appendChild(badge);
+      }
+    });
+  }
+
+  function checkUnlock() {
+    const allVisited = Object.values(visited).every(v => v === true);
+
+    if (allVisited) {
+      finalBtn.disabled = false;
+      finalBtn.classList.add("enabled");
+      finalBtn.textContent = "Final Question (Unlocked!)";
+
+      finalBtn.onclick = () => {
+        // change target as you like:
+        window.location.href = "final_round.html";
+      };
+    }
+  }
+
+  modules.forEach(mod => {
+    mod.addEventListener("click", () => {
+      const key = mod.dataset.module;
+      visited[key] = true;
+      saveVisited();
+      updateCardBadges();
+      checkUnlock();
+      // link still opens in new tab because of target="_blank"
+    });
+  });
+
+  // initial UI from stored progress
+  updateCardBadges();
+  checkUnlock();
+</script>
+
+</body>
+</html>

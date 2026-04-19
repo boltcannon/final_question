@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Interactive Array / Stack Learning (Touch)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 12px 20px;
+      background: #020617;
+      border-bottom: 1px solid #1f2937;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    header h1 {
+      font-size: 1.1rem;
+      margin: 0;
+      font-weight: 600;
+    }
+
+    header .subtitle {
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      padding: 16px;
+      gap: 16px;
+    }
+
+    .panel {
+      background: #020617;
+      border-radius: 16px;
+      border: 1px solid #1f2937;
+      padding: 16px;
+      flex: 1 1 280px;
+      min-width: 260px;
+    }
+
+    .panel h2 {
+      font-size: 0.95rem;
+      margin: 0 0 8px 0;
+      font-weight: 600;
+    }
+
+    .instruction-current {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .instruction-detail {
+      font-size: 0.85rem;
+      opacity: 0.75;
+      margin-bottom: 12px;
+    }
+
+    .progress {
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+
+    .feedback {
+      margin-top: 8px;
+      min-height: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .feedback.ok {
+      color: #4ade80;
+    }
+
+    .feedback.err {
+      color: #f97373;
+    }
+
+    .array-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .array-label {
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    .array {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      border-radius: 14px;
+      background: #020617;
+      box-shadow: 0 0 0 1px #1f2937;
+    }
+
+    .array-slot {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      background: linear-gradient(145deg, #0b1120, #020617);
+      border: 1px dashed #4b5563;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      color: #e5e7eb;
+    }
+
+    .array-slot-index {
+      position: absolute;
+      bottom: 2px;
+      right: 6px;
+      font-size: 0.6rem;
+      opacity: 0.6;
+    }
+
+    .array-slot.top {
+      box-shadow: 0 0 0 2px #facc15;
+    }
+
+    .array-slot.top::after {
+      content: "top";
+      position: absolute;
+      top: -16px;
+      font-size: 0.7rem;
+      color: #facc15;
+    }
+
+    .tile {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: radial-gradient(circle at 20% 20%, #22c55e, #16a34a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      color: #022c22;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+      touch-action: none; /* important for touch drag */
+      user-select: none;
+    }
+
+    .tile.dragging {
+      opacity: 0.9;
+      box-shadow: 0 18px 35px rgba(0,0,0,0.7);
+    }
+
+    .tile.finished {
+      background: radial-gradient(circle at 20% 20%, #38bdf8, #0ea5e9);
+      color: #0b1120;
+    }
+
+    .pool {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 12px;
+      background: #020617;
+      box-shadow: 0 0 0 1px #1f2937;
+      min-height: 62px;
+    }
+
+    .pool-label {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-bottom: 4px;
+    }
+
+    .controls {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      border-radius: 999px;
+      border: none;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #22c55e;
+      color: #022c22;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.2s;
+    }
+
+    button.secondary {
+      background: #1f2937;
+      color: #e5e7eb;
+    }
+
+    button:active {
+      transform: translateY(1px) scale(0.98);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    footer {
+      padding: 8px 16px 14px;
+      font-size: 0.75rem;
+      text-align: center;
+      opacity: 0.6;
+    }
+
+    @media (max-width: 720px) {
+      main {
+        flex-direction: column;
+      }
+      .array {
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Interactive Array / Stack Trainer</h1>
+      <div class="subtitle">
+        Touch + drag to PUSH. Tap POP to remove from top.
+      </div>
+    </div>
+    <div class="progress" id="progressText"></div>
+  </header>
+
+  <main>
+    <!-- Instructions / Feedback -->
+    <section class="panel">
+      <h2>Instruction</h2>
+      <div class="instruction-current" id="instructionText"></div>
+      <div class="instruction-detail" id="instructionDetail"></div>
+      <div class="controls">
+        <button id="popBtn" disabled>POP from top</button>
+        <button id="restartBtn" class="secondary">Restart</button>
+      </div>
+      <div class="feedback" id="feedback"></div>
+    </section>
+
+    <!-- Array & tiles -->
+    <section class="panel">
+      <h2>Array (implemented as Stack)</h2>
+      <div class="array-container">
+        <div class="array-label">Index → 0 ... n-1 (Top is highlighted)</div>
+        <div class="array" id="array">
+          <!-- slots created by JS -->
+        </div>
+        <div class="pool-label">Number tile bank (drag to array for PUSH)</div>
+        <div class="pool" id="pool"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Tip: On a touch table, multiple learners can drag tiles or tap POP together.
+  </footer>
+</div>
+
+<script>
+  // === CONFIGURABLE INSTRUCTIONS ===
+  // You can change this array to create different tasks.
+  const instructions = [
+    { type: "push", value: 2 },
+    { type: "push", value: 4 },
+    { type: "push", value: 20 },
+    { type: "push", value: 5 },
+    { type: "push", value: 3 },
+    { type: "push", value: 24 },
+    { type: "pop",  value: 24 },
+    { type: "pop",  value: 3 },
+    { type: "push", value: 7 }
+  ];
+
+  const MAX_SIZE = 8; // number of array slots
+
+  // === STATE ===
+  let arrayState = [];         // holds the current values in the array/stack
+  let currentIndex = 0;        // which instruction we’re on
+  let slots = [];
+  let activeDrags = new Map(); // pointerId -> { el, offsetX, offsetY, startParent }
+
+  // === DOM ELEMENTS ===
+  const instructionText  = document.getElementById("instructionText");
+  const instructionDetail= document.getElementById("instructionDetail");
+  const feedbackEl       = document.getElementById("feedback");
+  const progressText     = document.getElementById("progressText");
+  const arrayEl          = document.getElementById("array");
+  const poolEl           = document.getElementById("pool");
+  const popBtn           = document.getElementById("popBtn");
+  const restartBtn       = document.getElementById("restartBtn");
+
+  // === INIT ARRAY SLOTS ===
+  function initSlots() {
+    arrayEl.innerHTML = "";
+    slots = [];
+    for (let i = 0; i < MAX_SIZE; i++) {
+      const slot = document.createElement("div");
+      slot.className = "array-slot";
+      slot.dataset.index = i;
+      const idxLabel = document.createElement("div");
+      idxLabel.className = "array-slot-index";
+      idxLabel.textContent = i;
+      slot.appendChild(idxLabel);
+      arrayEl.appendChild(slot);
+      slots.push(slot);
+    }
+  }
+
+  // === HELPERS ===
+
+  function setFeedback(msg, ok = true) {
+    feedbackEl.textContent = msg || "";
+    feedbackEl.classList.toggle("ok", !!msg && ok);
+    feedbackEl.classList.toggle("err", !!msg && !ok);
+  }
+
+  function updateProgress() {
+    progressText.textContent = `Step ${Math.min(currentIndex + 1, instructions.length)} / ${instructions.length}`;
+  }
+
+  function highlightTop() {
+    slots.forEach((slot, i) => {
+      slot.classList.toggle("top", i === arrayState.length - 1 && arrayState.length > 0);
+    });
+  }
+
+  function clearPool() {
+    poolEl.innerHTML = "";
+  }
+
+  function createTile(value) {
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.textContent = value;
+    tile.dataset.value = value;
+    addDragHandlers(tile); // pointer-event drag
+    poolEl.appendChild(tile);
+    return tile;
+  }
+
+  // === INSTRUCTION DISPLAY ===
+
+  function showCurrentInstruction() {
+    updateProgress();
+    highlightTop();
+    clearPool();
+    setFeedback("");
+
+    // no more instructions
+    if (currentIndex >= instructions.length) {
+      instructionText.textContent = "🎉 All steps completed!";
+      instructionDetail.textContent = "You’ve executed every PUSH and POP correctly.";
+      popBtn.disabled = true;
+      return;
+    }
+
+    const instr = instructions[currentIndex];
+
+    if (instr.type === "push") {
+      instructionText.textContent = `PUSH ${instr.value}`;
+      instructionDetail.textContent =
+        `Drag the tile ${instr.value} into the next free array slot at index ${arrayState.length}.`;
+      popBtn.disabled = true;
+      createTile(instr.value);
+    } else if (instr.type === "pop") {
+      instructionText.textContent = `POP ${instr.value}`;
+      const topVal = arrayState.length ? arrayState[arrayState.length - 1] : "empty";
+      instructionDetail.textContent =
+        `Tap POP to remove the top element. Expected top value: ${instr.value} (current top: ${topVal}).`;
+      popBtn.disabled = false;
+    }
+  }
+
+  // === POP LOGIC ===
+
+  function handlePop() {
+    if (currentIndex >= instructions.length) return;
+    const instr = instructions[currentIndex];
+    if (instr.type !== "pop") return;
+
+    if (arrayState.length === 0) {
+      setFeedback("Array is empty. You cannot POP.", false);
+      return;
+    }
+
+    const topVal = arrayState[arrayState.length - 1];
+    if (topVal !== instr.value) {
+      setFeedback(`Incorrect: top is ${topVal}, expected ${instr.value}.`, false);
+      return;
+    }
+
+    // remove from state and UI
+    arrayState.pop();
+    const topSlot = slots[arrayState.length];
+    const tile = topSlot.querySelector(".tile");
+    if (tile) {
+      tile.classList.add("dragging");
+      tile.style.transition = "transform 0.25s, opacity 0.25s";
+      tile.style.transform = "translateY(10px) scale(0.8)";
+      tile.style.opacity = "0";
+      setTimeout(() => {
+        if (tile.parentElement) tile.parentElement.removeChild(tile);
+      }, 260);
+    }
+
+    setFeedback(`POP ${instr.value} ✓`, true);
+    currentIndex++;
+    showCurrentInstruction();
+  }
+
+  popBtn.addEventListener("click", handlePop);
+
+  restartBtn.addEventListener("click", () => {
+    arrayState = [];
+    currentIndex = 0;
+    initSlots();
+    clearPool();
+    setFeedback("");
+    showCurrentInstruction();
+  });
+
+  // === DRAG & DROP (POINTER EVENTS) ===
+
+  function addDragHandlers(tile) {
+    tile.addEventListener("pointerdown", onPointerDown);
+    tile.addEventListener("pointermove", onPointerMove);
+    tile.addEventListener("pointerup", onPointerUp);
+    tile.addEventListener("pointercancel", onPointerUp);
+  }
+
+  function onPointerDown(e) {
+    e.preventDefault();
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    const drag = {
+      el,
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
+      startParent: el.parentElement
+    };
+    activeDrags.set(e.pointerId, drag);
+
+    el.classList.add("dragging");
+    el.style.position = "fixed";
+    el.style.left = rect.left + "px";
+    el.style.top = rect.top + "px";
+    el.style.zIndex = "1000";
+
+    el.setPointerCapture(e.pointerId);
+  }
+
+  function onPointerMove(e) {
+    const drag = activeDrags.get(e.pointerId);
+    if (!drag) return;
+    e.preventDefault();
+    const el = drag.el;
+    el.style.left = (e.clientX - drag.offsetX) + "px";
+    el.style.top  = (e.clientY - drag.offsetY) + "px";
+  }
+
+  function onPointerUp(e) {
+    const drag = activeDrags.get(e.pointerId);
+    if (!drag) return;
+    e.preventDefault();
+    const el = drag.el;
+
+    el.releasePointerCapture(e.pointerId);
+    activeDrags.delete(e.pointerId);
+
+    // Find drop target under pointer
+    el.style.visibility = "hidden";
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    el.style.visibility = "visible";
+
+    let slot = null;
+    if (target) {
+      slot = target.closest(".array-slot");
+    }
+
+    const instr = instructions[currentIndex];
+
+    // Only handle push with drag. Pops happen via button.
+    const correctDrop =
+      instr &&
+      instr.type === "push" &&
+      slot &&
+      Number(slot.dataset.index) === arrayState.length &&
+      Number(el.dataset.value) === instr.value &&
+      arrayState.length < MAX_SIZE;
+
+    if (correctDrop) {
+      // snap into slot
+      slot.appendChild(el);
+      el.style.position = "static";
+      el.style.left = "";
+      el.style.top = "";
+      el.style.zIndex = "";
+      el.classList.remove("dragging");
+      el.classList.add("finished");
+
+      arrayState.push(instr.value);
+      setFeedback(`PUSH ${instr.value} ✓`, true);
+      currentIndex++;
+      showCurrentInstruction();
+    } else {
+      // revert back to original parent
+      drag.startParent.appendChild(el);
+      el.style.position = "static";
+      el.style.left = "";
+      el.style.top = "";
+      el.style.zIndex = "";
+      el.classList.remove("dragging");
+
+      if (instr && instr.type === "push") {
+        setFeedback("Drop the tile into the highlighted next free slot.", false);
+      }
+    }
+
+    highlightTop();
+  }
+
+  // === START ===
+  initSlots();
+  showCurrentInstruction();
+</script>
+</body>
+</html>

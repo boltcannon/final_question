@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mergesort Interactive Problem</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      touch-action: none;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+    }
+
+    body {
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .instructions {
+      max-width: 900px;
+      margin: 0 auto 20px;
+      font-size: 14px;
+      line-height: 1.5;
+      background: #ffffff;
+      padding: 10px 15px;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+
+    .controls {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .controls button {
+      padding: 8px 16px;
+      margin: 0 5px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      background: #1976d2;
+      color: white;
+      font-size: 14px;
+    }
+
+    .controls button:hover {
+      opacity: 0.9;
+    }
+
+    #sortedStatus {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 14px;
+      min-height: 18px;
+    }
+
+    .status-ok {
+      color: #2e7d32;
+      font-weight: bold;
+    }
+
+    .status-bad {
+      color: #c62828;
+      font-weight: bold;
+    }
+
+    .workspace {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .array-node {
+      border: 2px solid #000;
+      background: #fff;
+      border-radius: 8px;
+      padding: 10px;
+      margin: 12px auto;
+    }
+
+    .array-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .array-header span {
+      font-weight: bold;
+    }
+
+    .array-header button {
+      padding: 4px 10px;
+      font-size: 12px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      background: #388e3c;
+      color: white;
+    }
+
+    .array-header button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .array-slots {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .slot {
+      width: 40px;
+      height: 40px;
+      border: 2px solid #000;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      background: #fafafa;
+      position: relative;
+      box-sizing: border-box;
+    }
+
+    .slot.empty-frame {
+      background: #000;
+      border-color: #000;
+    }
+
+    .slot.empty-frame span {
+      color: #000;
+    }
+
+    .number {
+      padding: 5px 8px;
+      border-radius: 4px;
+      background: #ffcc80;
+      border: 1px solid #fb8c00;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      position: relative;
+      z-index: 1;
+    }
+
+    .number.dragging {
+      opacity: 0.8;
+      cursor: grabbing;
+    }
+
+    .slot.drag-over {
+      outline: 2px dashed #1976d2;
+    }
+
+    .children {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .child-node {
+      flex: 1;
+    }
+
+    @media (max-width: 768px) {
+      .children {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Mergesort – Divide, Sort & Merge</h1>
+
+  <div class="instructions">
+    <b>How to use:</b><br>
+    1. Click <b>Divide</b> on the main array to split it into two halves. The original array box stays as a black empty frame.<br>
+    2. Two learners can now work in parallel on the <b>left</b> and <b>right</b> arrays: divide them further, then sort inside each part.<br>
+    3. When you are ready to <b>merge</b>, drag numbers from the child arrays into the empty slots of the parent frame in sorted order.<br>
+    4. Continue until you have a fully sorted array at the top.<br>
+    5. Use <b>Check if Sorted</b> to see if the main array (top frame) is in ascending order.<br>
+    <br>
+    Supports <b>multi-touch</b>: multiple users can drag different numbers at the same time on a touch table.
+  </div>
+
+  <div class="controls">
+    <button id="resetBtn">Reset (New Random Array)</button>
+    <button id="checkSortedBtn">Check if Sorted</button>
+  </div>
+
+  <div id="sortedStatus"></div>
+
+  <div id="workspace" class="workspace"></div>
+
+  <script>
+    let nodeIdCounter = 0;
+    let rootNodeId = null;
+
+    function createNodeId() {
+      return "node-" + (nodeIdCounter++);
+    }
+
+    const nodes = new Map();
+    const activeDrags = new Map();
+
+    function randomArray(size = 8, min = 1, max = 30) {
+      const arr = [];
+      for (let i = 0; i < size; i++) {
+        arr.push(Math.floor(Math.random() * (max - min + 1)) + min);
+      }
+      return arr;
+    }
+
+    function init() {
+      const workspace = document.getElementById("workspace");
+      workspace.innerHTML = "";
+      nodes.clear();
+      nodeIdCounter = 0;
+      activeDrags.clear();
+      rootNodeId = null;
+
+      const statusEl = document.getElementById("sortedStatus");
+      statusEl.textContent = "";
+      statusEl.className = "";
+
+      const rootValues = randomArray(8);
+      const rootId = createNodeId();
+      rootNodeId = rootId;
+
+      const rootNode = {
+        id: rootId,
+        values: rootValues,
+        level: 0,
+        parentId: null,
+        element: null
+      };
+      nodes.set(rootId, rootNode);
+
+      const rootEl = renderArrayNode(rootNode, true);
+      rootNode.element = rootEl;
+      workspace.appendChild(rootEl);
+    }
+
+    document.getElementById("resetBtn").addEventListener("click", init);
+
+    // ---------- CHECK SORTED (FIXED) ----------
+    document.getElementById("checkSortedBtn").addEventListener("click", () => {
+      const statusEl = document.getElementById("sortedStatus");
+      statusEl.className = "";
+      statusEl.textContent = "";
+
+      if (!rootNodeId || !nodes.has(rootNodeId)) {
+        statusEl.textContent = "Main array not found.";
+        statusEl.classList.add("status-bad");
+        return;
+      }
+
+      const rootNode = nodes.get(rootNodeId);
+      const rootEl = rootNode.element;
+      if (!rootEl) {
+        statusEl.textContent = "Main array element missing.";
+        statusEl.classList.add("status-bad");
+        return;
+      }
+
+      // ✅ Only take the TOP row of slots (the main array's own slots)
+      const slotsContainer = rootEl.querySelector(".array-slots");
+      if (!slotsContainer) {
+        statusEl.textContent = "No slots found in main array.";
+        statusEl.classList.add("status-bad");
+        return;
+      }
+
+      const slots = Array.from(slotsContainer.querySelectorAll(".slot"));
+      if (slots.length === 0) {
+        statusEl.textContent = "No slots found in main array.";
+        statusEl.classList.add("status-bad");
+        return;
+      }
+
+      const values = [];
+      for (const slot of slots) {
+        const numEl = slot.querySelector(".number");
+        if (!numEl) {
+          statusEl.textContent =
+            "The main array is incomplete or not fully filled.";
+          statusEl.classList.add("status-bad");
+          return;
+        }
+        const val = parseInt(numEl.textContent.trim(), 10);
+        if (isNaN(val)) {
+          statusEl.textContent = "Invalid value found in main array.";
+          statusEl.classList.add("status-bad");
+          return;
+        }
+        values.push(val);
+      }
+
+      let sorted = true;
+      for (let i = 1; i < values.length; i++) {
+        if (values[i] < values[i - 1]) {
+          sorted = false;
+          break;
+        }
+      }
+
+      if (sorted) {
+        statusEl.textContent =
+          "✅ The main array is sorted in ascending order.";
+        statusEl.classList.add("status-ok");
+      } else {
+        statusEl.textContent =
+          "❌ The main array is NOT sorted in ascending order.";
+        statusEl.classList.add("status-bad");
+      }
+    });
+
+    // ---------- RENDERING ----------
+    function renderArrayNode(node, isRoot = false) {
+      const nodeEl = document.createElement("div");
+      nodeEl.className = "array-node";
+      nodeEl.dataset.nodeId = node.id;
+
+      const header = document.createElement("div");
+      header.className = "array-header";
+
+      const title = document.createElement("span");
+      title.textContent = isRoot ? "Main Array" : "Subarray";
+
+      const divideBtn = document.createElement("button");
+      divideBtn.textContent = "Divide";
+      divideBtn.addEventListener("click", () =>
+        handleDivide(node.id, nodeEl, divideBtn)
+      );
+
+      header.appendChild(title);
+      header.appendChild(divideBtn);
+      nodeEl.appendChild(header);
+
+      const slotsContainer = document.createElement("div");
+      slotsContainer.className = "array-slots";
+      nodeEl.appendChild(slotsContainer);
+
+      node.values.forEach((val, index) => {
+        const slot = document.createElement("div");
+        slot.className = "slot";
+        slot.dataset.index = index;
+        slot.dataset.nodeId = node.id;
+
+        if (val !== null && val !== undefined) {
+          const numEl = createNumberElement(val);
+          slot.appendChild(numEl);
+        }
+
+        setupSlotDragAndDrop(slot);
+        slotsContainer.appendChild(slot);
+      });
+
+      const childrenContainer = document.createElement("div");
+      childrenContainer.className = "children";
+      nodeEl.appendChild(childrenContainer);
+
+      return nodeEl;
+    }
+
+    // ---------- NUMBER CREATION ----------
+    function createNumberElement(value) {
+      const numEl = document.createElement("span");
+      numEl.className = "number";
+      numEl.textContent = value;
+      numEl.dataset.value = value;
+
+      numEl.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+
+        const slot = numEl.parentElement;
+        if (!slot || !slot.classList.contains("slot")) return;
+
+        const fromNodeId = slot.dataset.nodeId;
+        const fromIndex = slot.dataset.index;
+
+        const rect = numEl.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        const offsetY = e.clientY - rect.top;
+
+        numEl.classList.add("dragging");
+        numEl.style.position = "fixed";
+        numEl.style.left = rect.left + "px";
+        numEl.style.top = rect.top + "px";
+        numEl.style.zIndex = "1000";
+
+        try {
+          numEl.setPointerCapture(e.pointerId);
+        } catch (_) {}
+
+        activeDrags.set(e.pointerId, {
+          numEl,
+          value,
+          fromNodeId,
+          fromIndex,
+          offsetX,
+          offsetY,
+          lastHoverSlot: null
+        });
+      });
+
+      return numEl;
+    }
+
+    // ---------- DIVIDE ----------
+    function handleDivide(nodeId, nodeEl, divideBtn) {
+      const node = nodes.get(nodeId);
+      if (!node || node.values.length <= 1) {
+        divideBtn.disabled = true;
+        return;
+      }
+
+      const mid = Math.ceil(node.values.length / 2);
+      const leftValues = node.values.slice(0, mid);
+      const rightValues = node.values.slice(mid);
+
+      const slotsContainer = nodeEl.querySelector(".array-slots");
+      slotsContainer.innerHTML = "";
+      node.values.forEach((_, index) => {
+        const slot = document.createElement("div");
+        slot.className = "slot empty-frame";
+        slot.dataset.index = index;
+        slot.dataset.nodeId = node.id;
+        setupSlotDragAndDrop(slot);
+        slotsContainer.appendChild(slot);
+      });
+
+      divideBtn.disabled = true;
+
+      const childrenContainer = nodeEl.querySelector(".children");
+
+      const leftId = createNodeId();
+      const leftNode = {
+        id: leftId,
+        values: leftValues,
+        level: node.level + 1,
+        parentId: node.id,
+        element: null
+      };
+      nodes.set(leftId, leftNode);
+      const leftEl = renderArrayNode(leftNode, false);
+      leftNode.element = leftEl;
+      leftEl.classList.add("child-node");
+      childrenContainer.appendChild(leftEl);
+
+      const rightId = createNodeId();
+      const rightNode = {
+        id: rightId,
+        values: rightValues,
+        level: node.level + 1,
+        parentId: node.id,
+        element: null
+      };
+      nodes.set(rightId, rightNode);
+      const rightEl = renderArrayNode(rightNode, false);
+      rightNode.element = rightEl;
+      rightEl.classList.add("child-node");
+      childrenContainer.appendChild(rightEl);
+    }
+
+    function setupSlotDragAndDrop(slot) {
+      // hook for future if needed
+    }
+
+    // ---------- GLOBAL POINTER HANDLERS ----------
+    function handlePointerMove(e) {
+      const drag = activeDrags.get(e.pointerId);
+      if (!drag) return;
+
+      const { numEl, offsetX, offsetY } = drag;
+
+      numEl.style.left = (e.clientX - offsetX) + "px";
+      numEl.style.top = (e.clientY - offsetY) + "px";
+
+      numEl.style.visibility = "hidden";
+      const elem = document.elementFromPoint(e.clientX, e.clientY);
+      numEl.style.visibility = "";
+
+      const slot = elem ? elem.closest(".slot") : null;
+
+      if (drag.lastHoverSlot && drag.lastHoverSlot !== slot) {
+        drag.lastHoverSlot.classList.remove("drag-over");
+      }
+      if (slot) {
+        slot.classList.add("drag-over");
+      }
+      drag.lastHoverSlot = slot;
+    }
+
+    function handlePointerEnd(e) {
+      const drag = activeDrags.get(e.pointerId);
+      if (!drag) return;
+
+      const {
+        numEl,
+        fromNodeId,
+        fromIndex,
+        lastHoverSlot
+      } = drag;
+
+      numEl.classList.remove("dragging");
+      numEl.style.position = "";
+      numEl.style.left = "";
+      numEl.style.top = "";
+      numEl.style.zIndex = "";
+
+      try {
+        numEl.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+
+      if (lastHoverSlot) {
+        lastHoverSlot.classList.remove("drag-over");
+      }
+
+      numEl.style.visibility = "hidden";
+      const elem = document.elementFromPoint(e.clientX, e.clientY);
+      numEl.style.visibility = "";
+
+      const dropSlot = elem ? elem.closest(".slot") : null;
+
+      if (dropSlot && !dropSlot.querySelector(".number")) {
+        const fromNode = nodes.get(fromNodeId);
+        if (fromNode && fromNode.element) {
+          const fromNodeEl = fromNode.element;
+          const fromSlot = fromNodeEl.querySelector(
+            `.slot[data-index="${fromIndex}"]`
+          );
+          if (fromSlot && fromSlot !== dropSlot) {
+            fromSlot.innerHTML = "";
+          }
+        }
+        dropSlot.innerHTML = "";
+        dropSlot.appendChild(numEl);
+      } else {
+        const fromNode = nodes.get(fromNodeId);
+        if (fromNode && fromNode.element) {
+          const fromNodeEl = fromNode.element;
+          const fromSlot = fromNodeEl.querySelector(
+            `.slot[data-index="${fromIndex}"]`
+          );
+          if (fromSlot) {
+            fromSlot.innerHTML = "";
+            fromSlot.appendChild(numEl);
+          }
+        }
+      }
+
+      activeDrags.delete(e.pointerId);
+    }
+
+    document.addEventListener("pointermove", handlePointerMove);
+    document.addEventListener("pointerup", handlePointerEnd);
+    document.addEventListener("pointercancel", handlePointerEnd);
+
+    // ---------- START ----------
+    init();
+  </script>
+</body>
+</html>

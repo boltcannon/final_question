@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Animated Bubble Sort – Interactive Simulator</title>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f5f5f5;
+        padding: 20px;
+        text-align: center;
+    }
+
+    #arrayContainer {
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        height: 320px;
+        margin: 30px auto 10px;
+        gap: 10px;
+        position: relative;
+        width: max-content;
+        touch-action: manipulation;
+    }
+
+    .bar {
+        width: 40px;
+        background: steelblue;
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        padding-bottom: 8px;
+        font-weight: bold;
+        border-radius: 5px;
+        position: relative;
+        transition: transform 0.7s ease, background 0.3s ease, opacity 0.2s ease;
+        touch-action: none;
+        user-select: none;
+    }
+
+    .highlight { background: orange !important; }
+    .swap { background: crimson !important; }
+    .dragging { opacity: 0.7; }
+
+    button {
+        padding: 10px 15px;
+        margin: 4px;
+        font-size: 15px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        background: #007bff;
+        color: white;
+    }
+
+    button:active {
+        transform: scale(0.97);
+    }
+
+    #infoPanel {
+        margin-top: 10px;
+        font-size: 16px;
+    }
+</style>
+</head>
+
+<body>
+
+<h2>Animated Bubble Sort Simulator</h2>
+
+<div id="arrayContainer"></div>
+
+<div>
+    <button onclick="randomizeArray()">Randomize</button>
+    <button onclick="nextStep()">Next Step</button>
+    <button onclick="startAutoSort()">Auto Play</button>
+    <button onclick="pauseAuto()">Pause</button>
+    <button onclick="resetSort()">Reset</button>
+</div>
+
+<div id="infoPanel">
+    Steps: <span id="stepCounter">0</span> |
+    Swaps: <span id="swapCounter">0</span>
+</div>
+
+<script>
+    let arr = [];
+    let bars = [];
+    let i = 0, j = 0;
+    let autoInterval = null;
+    let originalArray = [];
+    let sortingInProgress = false;
+
+    let steps = 0;
+    let swaps = 0;
+
+    // For drag & multi-touch
+    const pointerDrags = new Map(); // pointerId -> { bar, startX, origIndex, origTransform }
+    let arrayContainer = null;
+
+    // Sound
+    let audioCtx = null;
+    function playBeep() {
+        try {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = 600;
+            gain.gain.value = 0.1;
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        } catch (e) {
+            // ignore audio errors
+        }
+    }
+
+    function updateCounters() {
+        document.getElementById("stepCounter").textContent = steps;
+        document.getElementById("swapCounter").textContent = swaps;
+    }
+
+    // -------------------- CREATE RANDOM ARRAY --------------------
+    function randomizeArray() {
+        arr = [];
+        for (let x = 0; x < 7; x++) arr.push(Math.floor(Math.random() * 40) + 5);
+        originalArray = [...arr];
+        i = 0; j = 0;
+        steps = 0;
+        swaps = 0;
+        updateCounters();
+        drawBars();
+        pauseAuto();
+    }
+
+    // -------------------- DRAW BARS --------------------
+    function drawBars() {
+        if (!arrayContainer) {
+            arrayContainer = document.getElementById("arrayContainer");
+        }
+        arrayContainer.innerHTML = "";
+        bars = [];
+
+        arr.forEach((value, index) => {
+            let bar = document.createElement("div");
+            bar.classList.add("bar");
+            bar.style.height = value * 5 + "px";
+            bar.textContent = value;
+            bar.dataset.index = index;
+            attachDragHandlers(bar);
+            bars.push(bar);
+            arrayContainer.appendChild(bar);
+        });
+    }
+
+    // -------------------- SWAP ANIMATION --------------------
+    function animateSwap(index1, index2) {
+        return new Promise(resolve => {
+            // Sound on swap
+            playBeep();
+            swaps++;
+            updateCounters();
+
+            bars[index1].classList.add("swap");
+            bars[index2].classList.add("swap");
+
+            const distance = (index2 - index1) * 50; // pixels
+
+            bars[index1].style.transform = `translateX(${distance}px)`;
+            bars[index2].style.transform = `translateX(-${distance}px)`;
+
+            setTimeout(() => {
+                bars[index1].style.transform = "";
+                bars[index2].style.transform = "";
+
+                // Swap bar references
+                let tempBar = bars[index1];
+                bars[index1] = bars[index2];
+                bars[index2] = tempBar;
+
+                // Swap values in array
+                let tempVal = arr[index1];
+                arr[index1] = arr[index2];
+                arr[index2] = tempVal;
+
+                // Re-render DOM in new order
+                arrayContainer.innerHTML = "";
+                bars.forEach((b, idx) => {
+                    b.dataset.index = idx;
+                    arrayContainer.appendChild(b);
+                });
+
+                bars[index1].classList.remove("swap");
+                bars[index2].classList.remove("swap");
+
+                resolve();
+            }, 700);
+        });
+    }
+
+    // -------------------- ONE STEP OF BUBBLE SORT --------------------
+    async function nextStep() {
+        if (sortingInProgress) return;
+        if (i >= arr.length - 1) {
+            alert("Sorting Complete!");
+            pauseAuto();
+            return;
+        }
+
+        sortingInProgress = true;
+        steps++;
+        updateCounters();
+
+        bars[j].classList.add("highlight");
+        bars[j + 1].classList.add("highlight");
+
+        await new Promise(res => setTimeout(res, 300));
+
+        if (arr[j] > arr[j + 1]) {
+            await animateSwap(j, j + 1);
+        }
+
+        bars[j].classList.remove("highlight");
+        bars[j + 1].classList.remove("highlight");
+
+        j++;
+        if (j >= arr.length - i - 1) {
+            j = 0;
+            i++;
+        }
+
+        sortingInProgress = false;
+    }
+
+    // -------------------- AUTO SORT --------------------
+    function startAutoSort() {
+        pauseAuto();
+        autoInterval = setInterval(nextStep, 1000);
+    }
+
+    function pauseAuto() {
+        if (autoInterval) clearInterval(autoInterval);
+        autoInterval = null;
+    }
+
+    // -------------------- RESET --------------------
+    function resetSort() {
+        arr = [...originalArray];
+        i = 0; j = 0;
+        steps = 0;
+        swaps = 0;
+        updateCounters();
+        drawBars();
+        pauseAuto();
+    }
+
+    // -------------------- MULTI-TOUCH DRAG SORTING --------------------
+    function attachDragHandlers(bar) {
+        bar.addEventListener("pointerdown", onPointerDown);
+        bar.addEventListener("pointermove", onPointerMove);
+        bar.addEventListener("pointerup", onPointerUp);
+        bar.addEventListener("pointercancel", onPointerUp);
+    }
+
+    function onPointerDown(e) {
+        if (sortingInProgress || autoInterval) return; // disable drag during sorting
+        const bar = e.currentTarget;
+        bar.setPointerCapture(e.pointerId);
+
+        const origIndex = parseInt(bar.dataset.index);
+        pointerDrags.set(e.pointerId, {
+            bar: bar,
+            startX: e.clientX,
+            origIndex: origIndex,
+            origTransform: bar.style.transform || ""
+        });
+
+        bar.classList.add("dragging");
+        e.preventDefault();
+    }
+
+    function onPointerMove(e) {
+        const drag = pointerDrags.get(e.pointerId);
+        if (!drag) return;
+
+        const deltaX = e.clientX - drag.startX;
+        drag.bar.style.transform = `translateX(${deltaX}px)`;
+    }
+
+    function onPointerUp(e) {
+        const drag = pointerDrags.get(e.pointerId);
+        if (!drag) return;
+
+        const bar = drag.bar;
+        bar.classList.remove("dragging");
+        bar.releasePointerCapture(e.pointerId);
+
+        // compute new index based on drop position
+        const rect = arrayContainer.getBoundingClientRect();
+        const relativeX = e.clientX - rect.left;
+        const slotWidth = 50; // bar width + gap approx
+        let newIndex = Math.floor(relativeX / slotWidth);
+
+        if (newIndex < 0) newIndex = 0;
+        if (newIndex >= arr.length) newIndex = arr.length - 1;
+
+        const origIndex = drag.origIndex;
+
+        // Reset transform
+        bar.style.transform = drag.origTransform;
+
+        if (newIndex !== origIndex) {
+            // reorder array
+            const [val] = arr.splice(origIndex, 1);
+            arr.splice(newIndex, 0, val);
+
+            // reorder bars array
+            const [barObj] = bars.splice(origIndex, 1);
+            bars.splice(newIndex, 0, barObj);
+        }
+
+        // re-draw bars with new order
+        arrayContainer.innerHTML = "";
+        bars.forEach((b, idx) => {
+            b.dataset.index = idx;
+            attachDragHandlers(b); // reattach handlers
+            arrayContainer.appendChild(b);
+        });
+
+        pointerDrags.delete(e.pointerId);
+    }
+
+    // Initial load
+    randomizeArray();
+</script>
+
+</body>
+</html>
